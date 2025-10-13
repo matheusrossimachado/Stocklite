@@ -2,43 +2,43 @@ import 'package:flutter/material.dart';
 
 class SignupController {
   final nameController = TextEditingController();
+  // MUDANÇA: Removemos o phoneController e vamos guardar o número de outra forma.
+  String fullPhoneNumber = ''; // <-- VAI GUARDAR O NÚMERO COMPLETO (ex: +5516999999999)
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
-  // MUDANÇA: O método agora retorna uma String que pode ser nula (String?).
   String? signup() {
     final String name = nameController.text;
+    // MUDANÇA: Usamos nossa nova variável.
+    final String phone = fullPhoneNumber; 
     final String email = emailController.text;
     final String password = passwordController.text;
     final String confirmPassword = confirmPasswordController.text;
 
-    // --- NOSSA LÓGICA DE VALIDAÇÃO ---
-
-    // 1. Verificar se algum campo está vazio.
-    // O método '.trim()' remove espaços em branco do início e do fim.
-    if (name.trim().isEmpty || email.trim().isEmpty || password.trim().isEmpty || confirmPassword.trim().isEmpty) {
+    if (name.trim().isEmpty || phone.trim().isEmpty || email.trim().isEmpty || password.trim().isEmpty || confirmPassword.trim().isEmpty) {
       return 'Por favor, preencha todos os campos.';
     }
 
-    // 2. Verificar se o e-mail tem um formato minimamente válido.
-    // A propriedade '.contains()' checa se a string contém um determinado texto.
+    // Podemos adicionar uma validação simples para o telefone
+    if(phone.length < 10){
+       return 'Por favor, insira um telefone válido.';
+    }
+
     if (!email.contains('@') || !email.contains('.')) {
       return 'Por favor, insira um e-mail válido.';
     }
 
-    // 3. Verificar o comprimento mínimo da senha.
     if (password.length < 6) {
       return 'A senha deve ter pelo menos 6 caracteres.';
     }
 
-    // 4. Verificar se as senhas coincidem.
     if (password != confirmPassword) {
       return 'As senhas não coincidem.';
     }
 
-    // 5. Se todas as validações passaram, retornamos null.
     print('Validação de cadastro bem-sucedida!');
+    print('Telefone completo: $phone');
     return null;
   }
 }
