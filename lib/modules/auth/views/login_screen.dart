@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
-
-// IMPORTANDO NOSSAS NOVAS TELAS. Agora vai funcionar, pois os arquivos existem!
+import 'package:stocklite_app/modules/auth/controllers/login_controller.dart';
 import 'package:stocklite_app/modules/auth/views/forgot_password_screen.dart';
 import 'package:stocklite_app/modules/auth/views/signup_screen.dart';
+import 'package:stocklite_app/modules/home/views/home_screen.dart';
 
-class LoginScreen extends StatelessWidget {
+class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final _controller = LoginController();
+
+  // NOVO: Uma variável de estado para controlar a visibilidade da senha.
+  // Começa como 'true' porque a senha deve iniciar escondida.
+  bool _isPasswordObscured = true;
 
   @override
   Widget build(BuildContext context) {
@@ -20,26 +31,13 @@ class LoginScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // --- Partes 1, 2 e 3 não mudam ---
-              const Icon(
-                Icons.inventory_2_outlined,
-                size: 80,
-                color: Colors.deepPurple,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Bem-vindo ao Stocklite',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Faça login para continuar',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
+              // ... (ícone e título não mudam)
+              const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.deepPurple),
               const SizedBox(height: 48),
+
+              // Campo de E-mail (não muda)
               TextFormField(
+                controller: _controller.emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'E-mail',
@@ -50,40 +48,51 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // --- CAMPO DE SENHA COM A MUDANÇA ---
               TextFormField(
-                obscureText: true,
-                decoration: const InputDecoration(
+                controller: _controller.passwordController,
+                // MUDANÇA: 'obscureText' agora depende da nossa variável de estado.
+                obscureText: _isPasswordObscured,
+                decoration: InputDecoration( // Removido o 'const' para poder usar variáveis
                   labelText: 'Senha',
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                  // NOVO: O ícone no final do campo (o "olho").
+                  suffixIcon: IconButton(
+                    // O ícone muda dependendo se a senha está visível ou não.
+                    icon: Icon(
+                      _isPasswordObscured ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    // A ação que acontece ao clicar no ícone.
+                    onPressed: () {
+                      // setState é o comando que avisa o Flutter: "Ei, uma variável de estado
+                      // mudou, por favor, redesenhe a tela para mostrar a mudança!"
+                      setState(() {
+                        // Invertemos o valor da variável (true vira false, false vira true).
+                        _isPasswordObscured = !_isPasswordObscured;
+                      });
+                    },
                   ),
                 ),
               ),
               const SizedBox(height: 8),
 
-              // --- 4. Botão "Esqueci minha senha" ---
+              // ... (resto do código da tela não muda)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  // AQUI ESTÁ A MUDANÇA!
                   onPressed: () {
-                    // O Navigator é o gerente de rotas do Flutter.
-                    // 'push' "empurra" uma nova tela para cima da tela atual.
-                    Navigator.of(context).push(
-                      // MaterialPageRoute cria uma transição de tela padrão.
-                      MaterialPageRoute(
-                        // O builder constrói a tela que queremos mostrar.
-                        builder: (context) => const ForgotPasswordScreen(),
-                      ),
-                    );
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(),
+                    ));
                   },
                   child: const Text('Esqueci minha senha'),
                 ),
               ),
               const SizedBox(height: 24),
-
-              // --- 5. Botão de Entrar ---
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
@@ -94,7 +103,20 @@ class LoginScreen extends StatelessWidget {
                   ),
                 ),
                 onPressed: () {
-                  // Lógica de login virá aqui no futuro
+                  final bool loginSuccess = _controller.login();
+                  if (loginSuccess) {
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const HomeScreen(),
+                      ),
+                    );
+                  } else {
+                    final snackBar = SnackBar(
+                      content: const Text('E-mail ou senha inválidos.'),
+                      backgroundColor: Colors.red,
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                  }
                 },
                 child: const Text(
                   'ENTRAR',
@@ -102,21 +124,15 @@ class LoginScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 32),
-
-              // --- 6. Link para Cadastro ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Não tem uma conta?'),
                   TextButton(
-                    // AQUI ESTÁ A OUTRA MUDANÇA!
                     onPressed: () {
-                      // Usamos a mesma lógica do Navigator para ir para a tela de cadastro.
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const SignupScreen(),
-                        ),
-                      );
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => const SignupScreen(),
+                      ));
                     },
                     child: const Text(
                       'Cadastre-se',
