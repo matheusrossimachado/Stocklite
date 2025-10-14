@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
 import 'package:stocklite_app/modules/about/views/about_screen.dart';
 import 'package:stocklite_app/modules/home/controllers/product_controller.dart';
+// 1. IMPORTANDO A NOSSA FUTURA TELA DE ADICIONAR PRODUTO
+import 'package:stocklite_app/modules/home/views/add_edit_product_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,23 +14,13 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-
-  // NOVO: Variável de estado para controlar o modo de visualização.
-  // Começa como 'false', ou seja, o padrão é a visualização em LISTA.
   bool _isGridView = false;
-
-  // A lista de widgets agora precisa receber o estado de visualização.
-  // Por isso, não pode ser 'static final' mais.
   late final List<Widget> _widgetOptions;
 
-  // 'initState' é um método especial que é chamado uma única vez
-  // quando o widget é criado. É o lugar perfeito para inicializar nossas variáveis.
   @override
   void initState() {
     super.initState();
-    // Inicializamos nossa lista de abas aqui.
     _widgetOptions = <Widget>[
-      // Passamos a variável de estado para a aba de Catálogo.
       CatalogTab(isGridView: _isGridView),
       const Center(
         child: Text('Aqui ficará o Resumo/Dashboard'),
@@ -49,18 +41,13 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text(_selectedIndex == 0 ? 'Catálogo' : 'Resumo'),
         automaticallyImplyLeading: false,
         actions: [
-          // NOVO: O botão de Toggle!
-          // Só mostramos o botão se a aba de Catálogo estiver selecionada.
           if (_selectedIndex == 0)
             IconButton(
-              // O ícone muda dependendo do modo de visualização atual.
               icon: Icon(_isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded),
-              tooltip: 'Alterar Visualização', // Texto de ajuda
+              tooltip: 'Alterar Visualização',
               onPressed: () {
-                // Ao pressionar, usamos setState para inverter o valor da nossa variável.
                 setState(() {
                   _isGridView = !_isGridView;
-                  // ATENÇÃO: Precisamos reconstruir nossa lista de abas com o novo valor.
                   _widgetOptions[0] = CatalogTab(isGridView: _isGridView);
                 });
               },
@@ -76,6 +63,22 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _widgetOptions.elementAt(_selectedIndex),
+
+      // --- AQUI ESTÁ A NOVIDADE ---
+      // A propriedade 'floatingActionButton' do Scaffold.
+      floatingActionButton: _selectedIndex == 0 // SÓ MOSTRA O BOTÃO SE A ABA FOR A DE CATÁLOGO
+    ? FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const AddEditProductScreen(),
+            ),
+          );
+        },
+        child: const Icon(Icons.add),
+      )
+    : null, // Se não for a aba de catálogo, o botão não é construído (fica nulo).
+
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.view_list_rounded), label: 'Catálogo'),
@@ -89,9 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// O widget CatalogTab agora precisa saber qual visualização mostrar.
+// O resto do arquivo (CatalogTab, _buildListView, _buildGridView) continua igual.
 class CatalogTab extends StatelessWidget {
-  // Recebemos o valor de 'isGridView' da tela principal.
   final bool isGridView;
   const CatalogTab({super.key, required this.isGridView});
 
@@ -102,17 +104,13 @@ class CatalogTab extends StatelessWidget {
         if (productController.products.isEmpty) {
           return const Center(child: Text('Nenhum produto cadastrado ainda.'));
         }
-
-        // --- AQUI ESTÁ A LÓGICA DO TOGGLE ---
-        // Usamos um operador ternário para decidir qual widget construir.
         return isGridView
-            ? _buildGridView(productController.products) // Se for grade, constrói a grade.
-            : _buildListView(productController.products); // Senão, constrói a lista.
+            ? _buildGridView(productController.products)
+            : _buildListView(productController.products);
       },
     );
   }
 
-  // MÉTODO PARA CONSTRUIR A LISTA (O que já tínhamos)
   Widget _buildListView(List<ProductModel> products) {
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -140,24 +138,19 @@ class CatalogTab extends StatelessWidget {
     );
   }
 
-  // NOVO: MÉTODO PARA CONSTRUIR A GRADE
   Widget _buildGridView(List<ProductModel> products) {
     return GridView.builder(
       padding: const EdgeInsets.all(8.0),
-      // 'gridDelegate' define o layout da grade.
-      // 'SliverGridDelegateWithFixedCrossAxisCount' cria uma grade com um número fixo de colunas.
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, // 2 colunas
-        crossAxisSpacing: 8, // Espaçamento horizontal entre os cards
-        mainAxisSpacing: 8, // Espaçamento vertical
-        childAspectRatio: 0.8, // Proporção dos cards (largura / altura)
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.8,
       ),
       itemCount: products.length,
       itemBuilder: (context, index) {
         final ProductModel product = products[index];
         final bool isLowStock = product.quantity <= product.minimumQuantity;
-        
-        // Usamos um Card para cada item da grade, com um layout vertical (Column).
         return Card(
           elevation: 2,
           child: Padding(
@@ -165,7 +158,6 @@ class CatalogTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Ícone com o alerta de estoque baixo no canto.
                 Align(
                   alignment: Alignment.topRight,
                   child: isLowStock ? const Icon(Icons.warning_amber_rounded, color: Colors.red) : const SizedBox(),
