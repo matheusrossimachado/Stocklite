@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
 
 class ProductController extends ChangeNotifier {
-
-  // MUDANÇA: Esta lista agora guardará TODOS os produtos, sem filtro.
-  // É a nossa "fonte da verdade" original.
+  
   final List<ProductModel> _allProducts = [
     ProductModel(id: '1', name: 'Arroz Camil 1kg', price: 5.50, category: 'Alimentos', quantity: 10, minimumQuantity: 5),
     ProductModel(id: '2', name: 'Café Pilão 500g', price: 12.80, category: 'Alimentos', quantity: 3, minimumQuantity: 4),
@@ -12,62 +10,69 @@ class ProductController extends ChangeNotifier {
     ProductModel(id: '4', name: 'Detergente Ypê', price: 1.99, category: 'Limpeza', quantity: 1, minimumQuantity: 3),
   ];
 
-  // MUDANÇA: Esta lista agora será a LISTA FILTRADA que a tela vai exibir.
   List<ProductModel> _filteredProducts = [];
+  String _searchQuery = '';
+  String? _categoryFilter;
 
-  // NO CONSTRUTOR do controller, garantimos que a lista filtrada comece
-  // com todos os produtos.
   ProductController() {
     _filteredProducts = List.from(_allProducts);
   }
 
-  // O getter agora aponta para a lista filtrada.
   List<ProductModel> get products => _filteredProducts;
 
-  // --- MÉTODOS DE GERENCIAMENTO (com um pequeno ajuste) ---
+  List<String> get uniqueCategories {
+    return _allProducts.map((p) => p.category).toSet().toList();
+  }
+
+  void search(String query) {
+    _searchQuery = query;
+    _runFilters();
+  }
+
+  void filterByCategory(String? category) {
+    _categoryFilter = category;
+    _runFilters();
+  }
+
+  void _runFilters() {
+    List<ProductModel> tempProducts = List.from(_allProducts);
+    if (_categoryFilter != null) {
+      tempProducts = tempProducts.where((product) => product.category == _categoryFilter).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      tempProducts = tempProducts
+          .where((product) =>
+              product.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+          .toList();
+    }
+    _filteredProducts = tempProducts;
+    notifyListeners();
+  }
 
   void addProduct(ProductModel product) {
     _allProducts.add(product);
-    search(''); // Chamamos a busca com texto vazio para resetar a lista
+    _runFilters();
   }
 
   void deleteProduct(String productId) {
     _allProducts.removeWhere((p) => p.id == productId);
-    search(''); // Resetamos a lista após a exclusão
+    _runFilters();
   }
 
   void incrementQuantity(String productId) {
     final product = _allProducts.firstWhere((p) => p.id == productId);
     product.quantity++;
-    notifyListeners(); // Apenas notificar é suficiente aqui
+    notifyListeners();
   }
 
   void decrementQuantity(String productId) {
     final product = _allProducts.firstWhere((p) => p.id == productId);
     if (product.quantity > 0) {
       product.quantity--;
-      notifyListeners(); // Apenas notificar é suficiente aqui
+      notifyListeners();
     }
   }
 
-  // --- O NOVO MÉTODO DE BUSCA ---
-  void search(String query) {
-    if (query.isEmpty) {
-      // Se a busca estiver vazia, a lista filtrada volta a ser a lista completa.
-      _filteredProducts = List.from(_allProducts);
-    } else {
-      // Se houver um texto, filtramos a lista completa.
-      _filteredProducts = _allProducts
-          .where((product) =>
-              // Convertemos ambos para minúsculas para a busca não diferenciar maiúsculas/minúsculas.
-              product.name.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    }
-    // ESSENCIAL: Avisamos a tela que a lista de produtos a ser exibida mudou!
-    notifyListeners();
-  }
-
-  // --- CÁLCULOS INTELIGENTES (agora baseados na lista completa) ---
   int get totalUniqueProducts => _allProducts.length;
 
   List<ProductModel> get productsToRestock {
@@ -75,9 +80,10 @@ class ProductController extends ChangeNotifier {
   }
 
   double get restockCost {
-    // ... (lógica do restockCost não muda)
     final toRestock = productsToRestock;
-    if (toRestock.isEmpty) return 0.0;
+    if (toRestock.isEmpty) {
+      return 0.0;
+    }
     return toRestock.fold(0.0, (sum, product) {
       int itemsNeeded = product.minimumQuantity - product.quantity;
       if (itemsNeeded <= 0) return sum;

@@ -5,11 +5,7 @@ import 'package:stocklite_app/modules/about/views/about_screen.dart';
 import 'package:stocklite_app/modules/home/controllers/product_controller.dart';
 import 'package:stocklite_app/modules/home/views/add_edit_product_screen.dart';
 
-// #############################################################################
-// AS CLASSES DE ABA (CATALOGTAB E SUMMARYTAB) VÊM PRIMEIRO
-// #############################################################################
-
-// --- WIDGET DA ABA DE CATÁLOGO ---
+// Colocando as classes na ordem correta, primeiro as que são usadas.
 class CatalogTab extends StatelessWidget {
   final bool isGridView;
   const CatalogTab({super.key, required this.isGridView});
@@ -113,7 +109,6 @@ class CatalogTab extends StatelessWidget {
   }
 }
 
-// --- WIDGET DA ABA DE RESUMO ---
 class SummaryTab extends StatelessWidget {
   const SummaryTab({super.key});
 
@@ -180,11 +175,6 @@ class SummaryTab extends StatelessWidget {
   }
 }
 
-
-// #############################################################################
-// A CLASSE DA TELA PRINCIPAL (HOMESCREEN) VEM POR ÚLTIMO
-// #############################################################################
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -196,6 +186,12 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isGridView = false;
   final _searchController = TextEditingController();
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -205,10 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final productController = Provider.of<ProductController>(context, listen: false);
-    final List<Widget> widgetOptions = <Widget>[
-      CatalogTab(isGridView: _isGridView),
-      const SummaryTab(),
-    ];
 
     return Scaffold(
       appBar: AppBar(
@@ -218,19 +210,48 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: InputDecoration(
                   hintText: 'Buscar produtos...',
                   border: InputBorder.none,
-                  suffixIcon: IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      _searchController.clear();
-                      productController.search('');
-                    },
-                  ),
+                  suffixIcon: _searchController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            productController.search('');
+                            setState(() {}); // Força a reconstrução para esconder o 'X'
+                          },
+                        )
+                      : null,
                 ),
-                onChanged: (query) => productController.search(query),
+                onChanged: (query) {
+                  productController.search(query);
+                  setState(() {}); // Força a reconstrução para mostrar/esconder o 'X'
+                },
               )
             : const Text('Resumo'),
         automaticallyImplyLeading: false,
         actions: [
+          if (_selectedIndex == 0)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.filter_list_rounded),
+              tooltip: 'Filtrar por Categoria',
+              onSelected: (String? value) {
+                productController.filterByCategory(value == 'all' ? null : value);
+              },
+              itemBuilder: (BuildContext context) {
+                final categories = context.read<ProductController>().uniqueCategories;
+                return [
+                  const PopupMenuItem<String>(
+                    value: 'all',
+                    child: Text('Todas as Categorias'),
+                  ),
+                  ...categories.map((String category) {
+                    return PopupMenuItem<String>(
+                      value: category,
+                      child: Text(category),
+                    );
+                  }).toList(),
+                ];
+              },
+            ),
           if (_selectedIndex == 0)
             IconButton(
               icon: Icon(_isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded),
@@ -248,7 +269,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: widgetOptions.elementAt(_selectedIndex),
+      body: _selectedIndex == 0 ? CatalogTab(isGridView: _isGridView) : const SummaryTab(),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: () {
