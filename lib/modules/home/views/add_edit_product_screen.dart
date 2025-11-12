@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// 1. IMPORTANDO O NOSSO NOVO CONTROLLER
 import 'package:stocklite_app/modules/home/controllers/add_edit_product_controller.dart';
 
 class AddEditProductScreen extends StatefulWidget {
@@ -10,11 +9,17 @@ class AddEditProductScreen extends StatefulWidget {
 }
 
 class _AddEditProductScreenState extends State<AddEditProductScreen> {
-  // 2. INSTANCIANDO O CONTROLLER
   final _controller = AddEditProductController();
-
   final List<String> _categories = ['Alimentos', 'Limpeza', 'Higiene', 'Bebidas', 'Outros'];
   String? _selectedCategory;
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicia a categoria com um valor para o controller
+    _selectedCategory = _categories.first;
+    _controller.categoryController.text = _selectedCategory ?? '';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,9 +32,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // 3. CONECTANDO CADA CAMPO AO SEU CONTROLLER
             TextFormField(
-              controller: _controller.nameController, // Conectado
+              controller: _controller.nameController,
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Nome do Produto',
@@ -38,9 +42,8 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
             TextFormField(
-              controller: _controller.priceController, // Conectado
+              controller: _controller.priceController,
               textInputAction: TextInputAction.next,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               decoration: const InputDecoration(
@@ -50,7 +53,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
             DropdownButtonFormField<String>(
               decoration: const InputDecoration(
                 labelText: 'Categoria',
@@ -65,18 +67,16 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               onChanged: (String? newValue) {
                 setState(() {
                   _selectedCategory = newValue;
-                  // 4. ATUALIZANDO O CONTROLLER QUANDO A CATEGORIA MUDA
                   _controller.categoryController.text = newValue ?? '';
                 });
               },
             ),
             const SizedBox(height: 16),
-
             Row(
               children: [
                 Expanded(
                   child: TextFormField(
-                    controller: _controller.quantityController, // Conectado
+                    controller: _controller.quantityController,
                     textInputAction: TextInputAction.next,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
@@ -89,7 +89,7 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextFormField(
-                    controller: _controller.minQuantityController, // Conectado
+                    controller: _controller.minQuantityController,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
                       labelText: 'Qtd. Mínima',
@@ -101,8 +101,6 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
               ],
             ),
             const SizedBox(height: 48),
-
-            // 5. IMPLEMENTANDO A LÓGICA DO BOTÃO SALVAR
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
@@ -110,21 +108,20 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: () {
-                // Chamamos nosso método de salvar do controller.
-                final String? errorMessage = _controller.saveProduct(context);
+              onPressed: () async {
+                // AQUI ESTÁ A CORREÇÃO: O 'await' agora funciona
+                final String? errorMessage = await _controller.saveProduct();
+
+                if (!context.mounted) return;
 
                 if (errorMessage != null) {
-                  // Se houver um erro, mostramos a SnackBar vermelha.
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
                   );
                 } else {
-                  // Se for sucesso (null), mostramos a SnackBar verde...
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Produto salvo com sucesso!'), backgroundColor: Colors.green),
                   );
-                  // ...e fechamos a tela de formulário, voltando para a Home.
                   Navigator.of(context).pop();
                 }
               },

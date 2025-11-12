@@ -16,10 +16,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
+      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Column(
@@ -41,7 +38,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 labelText: 'Nome completo',
                 prefixIcon: Icon(Icons.person_outline),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12))),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -50,38 +48,44 @@ class _SignupScreenState extends State<SignupScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outline, width: 1.0),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                  width: 1.0,
+                ),
                 borderRadius: BorderRadius.circular(12.0),
               ),
               child: InternationalPhoneNumberInput(
                 onInputChanged: (PhoneNumber number) {
                   _controller.fullPhoneNumber = number.phoneNumber ?? '';
                 },
-                
+
                 // Configuração da aparência do seletor (bandeira e código)
                 selectorConfig: const SelectorConfig(
                   selectorType: PhoneInputSelectorType.DIALOG,
-                  trailingSpace: false, // Remove o espaço extra à direita da bandeira
+                  trailingSpace:
+                      false, // Remove o espaço extra à direita da bandeira
                 ),
 
                 // Decoração do campo de texto interno
                 inputDecoration: const InputDecoration(
                   hintText: 'Telefone',
                   // CRÍTICO: Remove a borda de dentro para não ter duas bordas
-                  border: InputBorder.none, 
+                  border: InputBorder.none,
                 ),
-                
+
                 // CRÍTICO: Remove a borda padrão do widget em si
-                inputBorder: InputBorder.none, 
+                inputBorder: InputBorder.none,
 
                 initialValue: PhoneNumber(isoCode: 'BR'),
                 formatInput: true,
                 keyboardType: const TextInputType.numberWithOptions(
-                    signed: true, decimal: true),
+                  signed: true,
+                  decimal: true,
+                ),
               ),
             ),
             const SizedBox(height: 16),
-            
+
             TextFormField(
               controller: _controller.emailController,
               textInputAction: TextInputAction.next,
@@ -90,7 +94,8 @@ class _SignupScreenState extends State<SignupScreen> {
                 labelText: 'E-mail',
                 prefixIcon: Icon(Icons.email_outlined),
                 border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12))),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -102,11 +107,14 @@ class _SignupScreenState extends State<SignupScreen> {
                 labelText: 'Senha',
                 prefixIcon: const Icon(Icons.lock_outline),
                 border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12))),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
                 suffixIcon: IconButton(
-                  icon: Icon(_isPasswordObscured
-                      ? Icons.visibility_off
-                      : Icons.visibility),
+                  icon: Icon(
+                    _isPasswordObscured
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
                   onPressed: () {
                     setState(() {
                       _isPasswordObscured = !_isPasswordObscured;
@@ -123,11 +131,14 @@ class _SignupScreenState extends State<SignupScreen> {
                 labelText: 'Confirmar Senha',
                 prefixIcon: const Icon(Icons.lock_person_outlined),
                 border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12))),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
                 suffixIcon: IconButton(
-                  icon: Icon(_isConfirmPasswordObscured
-                      ? Icons.visibility_off
-                      : Icons.visibility),
+                  icon: Icon(
+                    _isConfirmPasswordObscured
+                        ? Icons.visibility_off
+                        : Icons.visibility,
+                  ),
                   onPressed: () {
                     setState(() {
                       _isConfirmPasswordObscured = !_isConfirmPasswordObscured;
@@ -143,24 +154,47 @@ class _SignupScreenState extends State<SignupScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              onPressed: () {
-                final String? errorMessage = _controller.signup();
-                if (errorMessage != null) {
-                  final snackBar = SnackBar(
-                      content: Text(errorMessage), backgroundColor: Colors.red);
-                  ScaffoldMessenger.of(context).showSnackBar(snackBar);
+              // 1. O 'onPressed' agora é 'async'
+              onPressed: () async {
+                // 2. ATUALIZANDO O CONTROLLER COM O NÚMERO DE TELEFONE
+                // (Esta lógica depende de como guardamos o número do 'intl_phone_number_input')
+                // No nosso caso, o 'onInputChanged' do 'InternationalPhoneNumberInput'
+                // já deve estar atualizando o '_controller.fullPhoneNumber'
+
+                // 3. Chamamos o 'signup' e esperamos a resposta.
+                final String? errorMessage = await _controller.signup();
+
+                // 4. Verificamos a resposta.
+                if (errorMessage == null) {
+                  // SUCESSO! O erro é nulo.
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Conta criada com sucesso!'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                    Navigator.of(context).pop(); // Volta para a tela de login
+                  }
                 } else {
-                  final snackBar = SnackBar(
-                      content: const Text('Conta criada com sucesso!'),
-                      backgroundColor: Colors.green);
-                  ScaffoldMessenger.of(context).showSnackBar(snackBar);
-                  Navigator.of(context).pop();
+                  // ERRO! Mostramos a mensagem exata do Firebase.
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(errorMessage),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 }
               },
-              child: const Text('CADASTRAR',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: const Text(
+                'CADASTRAR',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 24),
             Row(
@@ -171,11 +205,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Faça login',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Faça login',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
-            )
+            ),
           ],
         ),
       ),

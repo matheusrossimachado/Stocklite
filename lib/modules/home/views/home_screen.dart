@@ -1,34 +1,67 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
+import 'package:stocklite_app/data/services/product_service.dart';
 import 'package:stocklite_app/modules/about/views/about_screen.dart';
 import 'package:stocklite_app/modules/home/controllers/product_controller.dart';
 import 'package:stocklite_app/modules/home/views/add_edit_product_screen.dart';
 
-// Colocando as classes na ordem correta, primeiro as que são usadas.
+// As classes de aba vêm primeiro
 class CatalogTab extends StatelessWidget {
   final bool isGridView;
-  const CatalogTab({super.key, required this.isGridView});
+  final ProductService _productService = ProductService();
+
+  CatalogTab({super.key, required this.isGridView});
 
   @override
   Widget build(BuildContext context) {
-    final productController = Provider.of<ProductController>(context);
-    if (productController.products.isEmpty) {
-      return const Center(child: Text('Nenhum produto encontrado.'));
-    }
-    return isGridView
-        ? _buildGridView(context, productController)
-        : _buildListView(context, productController);
+    return Consumer<ProductController>(
+      builder: (context, filterController, child) {
+        return StreamBuilder<List<ProductModel>>(
+          stream: _productService.getProductsStream(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text('Erro ao carregar produtos: ${snapshot.error}'));
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Center(child: Text('Nenhum produto cadastrado ainda.'));
+            }
+
+            List<ProductModel> products = snapshot.data!;
+
+            final category = filterController.categoryFilter;
+            final query = filterController.searchQuery;
+
+            if (category != null) {
+              products = products.where((p) => p.category == category).toList();
+            }
+            if (query.isNotEmpty) {
+              products = products.where((p) => p.name.toLowerCase().contains(query.toLowerCase())).toList();
+            }
+            
+            if (products.isEmpty) {
+              return const Center(child: Text('Nenhum produto encontrado para este filtro.'));
+            }
+
+            return isGridView
+                ? _buildGridView(context, products)
+                : _buildListView(context, products);
+          },
+        );
+      },
+    );
   }
 
-  Widget _buildListView(BuildContext context, ProductController productController) {
-    final products = productController.products;
+  Widget _buildListView(BuildContext context, List<ProductModel> products) {
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
       itemCount: products.length,
       itemBuilder: (context, index) {
-        final ProductModel product = products[index];
-        final bool isLowStock = product.quantity <= product.minimumQuantity;
+        final product = products[index];
+        final isLowStock = product.quantity <= product.minimumQuantity;
         return Card(
           child: ListTile(
             leading: Icon(Icons.shopping_bag_outlined, color: isLowStock ? Colors.red : Colors.deepPurple, size: 40),
@@ -37,9 +70,9 @@ class CatalogTab extends StatelessWidget {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => context.read<ProductController>().decrementQuantity(product.id)),
+                IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity - 1)),
                 Text('${product.quantity}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
-                IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => context.read<ProductController>().incrementQuantity(product.id)),
+                IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity + 1)),
                 IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _showDeleteConfirmDialog(context, product)),
               ],
             ),
@@ -49,15 +82,14 @@ class CatalogTab extends StatelessWidget {
     );
   }
 
-  Widget _buildGridView(BuildContext context, ProductController productController) {
-    final products = productController.products;
+  Widget _buildGridView(BuildContext context, List<ProductModel> products) {
     return GridView.builder(
       padding: const EdgeInsets.all(8.0),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.75),
       itemCount: products.length,
       itemBuilder: (context, index) {
-        final ProductModel product = products[index];
-        final bool isLowStock = product.quantity <= product.minimumQuantity;
+        final product = products[index];
+        final isLowStock = product.quantity <= product.minimumQuantity;
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
@@ -72,9 +104,9 @@ class CatalogTab extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => context.read<ProductController>().decrementQuantity(product.id)),
+                    IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity - 1)),
                     Text('${product.quantity}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => context.read<ProductController>().incrementQuantity(product.id)),
+                    IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity + 1)),
                   ],
                 ),
                 Center(child: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _showDeleteConfirmDialog(context, product))),
@@ -98,7 +130,7 @@ class CatalogTab extends StatelessWidget {
             TextButton(
               child: const Text('EXCLUIR', style: TextStyle(color: Colors.red)),
               onPressed: () {
-                context.read<ProductController>().deleteProduct(product.id);
+                _productService.deleteProduct(product.id);
                 Navigator.of(ctx).pop();
               },
             ),
@@ -114,9 +146,30 @@ class SummaryTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<ProductController>(
-      builder: (context, controller, child) {
-        final toRestock = controller.productsToRestock;
+    final productService = ProductService();
+    
+    return StreamBuilder<List<ProductModel>>(
+      stream: productService.getProductsStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Erro: ${snapshot.error}'));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(child: Text('Nenhum produto cadastrado.'));
+        }
+
+        final allProducts = snapshot.data!;
+        
+        final int totalUniqueProducts = allProducts.length;
+        final productsToRestock = allProducts.where((p) => p.quantity <= p.minimumQuantity).toList();
+        final double restockCost = productsToRestock.fold(0.0, (sum, p) {
+          int needed = p.minimumQuantity - p.quantity;
+          return sum + (needed > 0 ? (p.price * needed) : 0.0);
+        });
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -129,8 +182,8 @@ class SummaryTab extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildSummaryInfo('Itens Únicos', controller.totalUniqueProducts.toString()),
-                      _buildSummaryInfo('Custo p/ Repor', 'R\$ ${controller.restockCost.toStringAsFixed(2)}'),
+                      _buildSummaryInfo('Itens Únicos', totalUniqueProducts.toString()),
+                      _buildSummaryInfo('Custo p/ Repor', 'R\$ ${restockCost.toStringAsFixed(2)}'),
                     ],
                   ),
                 ),
@@ -139,14 +192,14 @@ class SummaryTab extends StatelessWidget {
               const Text('Itens para Repor', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const Divider(),
               const SizedBox(height: 8),
-              if (toRestock.isEmpty) const Center(child: Text('Nenhum item com estoque baixo. Parabéns!')),
-              if (toRestock.isNotEmpty)
+              if (productsToRestock.isEmpty) const Center(child: Text('Nenhum item com estoque baixo. Parabéns!')),
+              if (productsToRestock.isNotEmpty)
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  itemCount: toRestock.length,
+                  itemCount: productsToRestock.length,
                   itemBuilder: (context, index) {
-                    final product = toRestock[index];
+                    final product = productsToRestock[index];
                     return Card(
                       color: Colors.red.shade50,
                       child: ListTile(
@@ -175,6 +228,7 @@ class SummaryTab extends StatelessWidget {
   }
 }
 
+// A HomeScreen (Stateful) vem por último
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -216,14 +270,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () {
                             _searchController.clear();
                             productController.search('');
-                            setState(() {}); // Força a reconstrução para esconder o 'X'
+                            setState(() {}); 
                           },
                         )
                       : null,
                 ),
                 onChanged: (query) {
                   productController.search(query);
-                  setState(() {}); // Força a reconstrução para mostrar/esconder o 'X'
+                  setState(() {}); 
                 },
               )
             : const Text('Resumo'),

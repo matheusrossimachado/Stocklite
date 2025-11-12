@@ -32,7 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // ... (ícone e título não mudam)
-              const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.deepPurple),
+              const Icon(
+                Icons.inventory_2_outlined,
+                size: 80,
+                color: Colors.deepPurple,
+              ),
               const SizedBox(height: 48),
 
               // Campo de E-mail (não muda)
@@ -54,7 +58,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: _controller.passwordController,
                 // MUDANÇA: 'obscureText' agora depende da nossa variável de estado.
                 obscureText: _isPasswordObscured,
-                decoration: InputDecoration( // Removido o 'const' para poder usar variáveis
+                decoration: InputDecoration(
+                  // Removido o 'const' para poder usar variáveis
                   labelText: 'Senha',
                   prefixIcon: const Icon(Icons.lock_outline),
                   border: const OutlineInputBorder(
@@ -64,7 +69,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   suffixIcon: IconButton(
                     // O ícone muda dependendo se a senha está visível ou não.
                     icon: Icon(
-                      _isPasswordObscured ? Icons.visibility_off : Icons.visibility,
+                      _isPasswordObscured
+                          ? Icons.visibility_off
+                          : Icons.visibility,
                     ),
                     // A ação que acontece ao clicar no ícone.
                     onPressed: () {
@@ -85,9 +92,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    Navigator.of(context).push(MaterialPageRoute(
-                      builder: (context) => const ForgotPasswordScreen(),
-                    ));
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordScreen(),
+                      ),
+                    );
                   },
                   child: const Text('Esqueci minha senha'),
                 ),
@@ -102,20 +111,36 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {
-                  final bool loginSuccess = _controller.login();
-                  if (loginSuccess) {
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const HomeScreen(),
-                      ),
-                    );
+                // 1. O 'onPressed' agora é 'async' para poder usar 'await'.
+                onPressed: () async {
+                  // 2. Chamamos o método 'login' e 'await' (esperamos) pela resposta.
+                  // A resposta será 'null' (sucesso) ou uma String (mensagem de erro).
+                  final String? errorMessage = await _controller.login();
+
+                  // 3. Verificamos a resposta.
+                  if (errorMessage == null) {
+                    // SUCESSO! O erro é nulo.
+                    // Navegamos para a HomeScreen.
+                    // (Usamos 'context.mounted' para garantir que a tela ainda existe
+                    // antes de navegar, é uma boa prática de segurança).
+                    if (context.mounted) {
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(
+                          builder: (context) => const HomeScreen(),
+                        ),
+                      );
+                    }
                   } else {
-                    final snackBar = SnackBar(
-                      content: const Text('E-mail ou senha inválidos.'),
-                      backgroundColor: Colors.red,
-                    );
-                    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+                    // ERRO! A mensagem NÃO é nula.
+                    // Mostramos a mensagem de erro exata que o Firebase nos deu.
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(errorMessage),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 },
                 child: const Text(
@@ -130,9 +155,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text('Não tem uma conta?'),
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => const SignupScreen(),
-                      ));
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => const SignupScreen(),
+                        ),
+                      );
                     },
                     child: const Text(
                       'Cadastre-se',
@@ -140,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-              )
+              ),
             ],
           ),
         ),

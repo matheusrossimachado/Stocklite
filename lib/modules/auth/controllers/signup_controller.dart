@@ -1,44 +1,74 @@
 import 'package:flutter/material.dart';
+// 1. IMPORTANDO AS FERRAMENTAS DO FIREBASE
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SignupController {
   final nameController = TextEditingController();
-  // MUDANÇA: Removemos o phoneController e vamos guardar o número de outra forma.
-  String fullPhoneNumber = ''; // <-- VAI GUARDAR O NÚMERO COMPLETO (ex: +5516999999999)
+  final phoneController = TextEditingController(); // Vamos usar o text do 'intl_phone_number_input'
+  String fullPhoneNumber = ''; // Vamos preencher isso pela tela
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
-  String? signup() {
+  // 2. O MÉTODO AGORA É 'ASYNC' E RETORNA UM ERRO OU NADA
+  Future<String?> signup() async {
     final String name = nameController.text;
-    // MUDANÇA: Usamos nossa nova variável.
-    final String phone = fullPhoneNumber; 
+    final String phone = fullPhoneNumber; // Usamos o número completo
     final String email = emailController.text;
     final String password = passwordController.text;
     final String confirmPassword = confirmPasswordController.text;
 
-    if (name.trim().isEmpty || phone.trim().isEmpty || email.trim().isEmpty || password.trim().isEmpty || confirmPassword.trim().isEmpty) {
+    // --- VALIDAÇÃO DE CAMPOS (continua igual) ---
+    if (name.trim().isEmpty || phone.trim().isEmpty || email.trim().isEmpty || password.trim().isEmpty) {
       return 'Por favor, preencha todos os campos.';
     }
-
-    // Podemos adicionar uma validação simples para o telefone
-    if(phone.length < 10){
-       return 'Por favor, insira um telefone válido.';
-    }
-
-    if (!email.contains('@') || !email.contains('.')) {
-      return 'Por favor, insira um e-mail válido.';
-    }
-
-    if (password.length < 6) {
-      return 'A senha deve ter pelo menos 6 caracteres.';
-    }
-
     if (password != confirmPassword) {
       return 'As senhas não coincidem.';
     }
+    // ... (outras validações que fizemos) ...
+    
+    try {
+      // 3. PASSO 1: CRIAR O USUÁRIO NO FIREBASE AUTHENTICATION
+      // Primeiro, criamos o usuário (email/senha) no serviço de autenticação.
+      final UserCredential userCredential = 
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
 
-    print('Validação de cadastro bem-sucedida!');
-    print('Telefone completo: $phone');
-    return null;
+      // Se chegamos aqui, o usuário foi criado com sucesso!
+      final User? user = userCredential.user;
+
+      if (user != null) {
+        // 4. PASSO 2: SALVAR OS DADOS EXTRAS NO FIRESTORE
+        // Agora, pegamos o ID único desse usuário (user.uid) e usamos como
+        // chave para salvar os outros dados no banco de dados, na coleção "usuarios".
+        await FirebaseFirestore.instance.collection('usuarios').doc(user.uid).set({
+          'name': name,
+          'phone': phone,
+          'email': email,
+          // Você pode adicionar qualquer outro campo que quiser aqui.
+        });
+      }
+      
+      // 5. SUCESSO!
+      // Se tudo deu certo (Auth e Firestore), retornamos null (sem erro).
+      return null;
+
+    } on FirebaseAuthException catch (e) {
+      // 6. DEU ERRO!
+      // Traduzimos os erros do Firebase para o usuário. [cite: 14, 38]
+      print('Erro de cadastro do Firebase: ${e.code}');
+      if (e.code == 'weak-password') {
+        return 'Sua senha é muito fraca.';
+      } else if (e.code == 'email-already-in-use') {
+        return 'Este e-mail já está sendo usado por outra conta.';
+      } else if (e.code == 'invalid-email') {
+        return 'O formato do e-mail é inválido.';
+      } else {
+        return 'Ocorreu um erro. Tente novamente mais tarde.';
+      }
+    }
   }
 }

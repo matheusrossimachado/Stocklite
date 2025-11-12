@@ -1,19 +1,13 @@
-// Este arquivo define a estrutura de dados de um Produto.
-// É como o RG de cada item do nosso estoque.
-class ProductModel {
-  // Usamos 'final' porque, uma vez que um produto é criado,
-  // suas propriedades não devem ser alteradas diretamente.
-  // Para mudar a quantidade, por exemplo, usaremos métodos no controller.
-  final String id; // Um identificador único para cada produto.
-  final String name; // O nome do produto (ex: "Arroz Tio João").
-  final double price; // O preço do produto.
-  final String category; // A categoria (ex: "Alimentos", "Higiene").
-  int quantity; // A quantidade atual em estoque. (Não é 'final' pois vai mudar)
-  final int minimumQuantity; // A quantidade mínima para o alerta de "estoque baixo".
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-  // Este é o "construtor" da nossa classe.
-  // Ele garante que, ao criar um novo produto, todas as informações
-  // necessárias sejam fornecidas.
+class ProductModel {
+  final String id;
+  final String name;
+  final double price;
+  final String category;
+  int quantity;
+  final int minimumQuantity;
+
   ProductModel({
     required this.id,
     required this.name,
@@ -22,4 +16,37 @@ class ProductModel {
     required this.quantity,
     required this.minimumQuantity,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'price': price,
+      'category': category,
+      'quantity': quantity,
+      'minimumQuantity': minimumQuantity,
+    };
+  }
+
+  factory ProductModel.fromMap(Map<String, dynamic> map, String id) {
+    return ProductModel(
+      id: id,
+      name: map['name'] ?? '',
+      price: (map['price'] as num? ?? 0.0).toDouble(),
+      category: map['category'] ?? '',
+      quantity: (map['quantity'] as num? ?? 0).toInt(),
+      minimumQuantity: (map['minimumQuantity'] as num? ?? 0).toInt(),
+    );
+  }
+  
+  factory ProductModel.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return ProductModel(
+      id: doc.id,
+      name: data['name'] ?? '',
+      price: (data['price'] as num? ?? 0.0).toDouble(),
+      category: data['category'] ?? '',
+      quantity: (data['quantity'] as num? ?? 0).toInt(),
+      minimumQuantity: (data['minimumQuantity'] as num? ?? 0).toInt(),
+    );
+  }
 }

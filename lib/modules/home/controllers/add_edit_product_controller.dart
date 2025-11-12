@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
-import 'package:stocklite_app/modules/home/controllers/product_controller.dart';
-import 'dart:math';
+import 'package:stocklite_app/data/services/product_service.dart';
 
 class AddEditProductController {
   final nameController = TextEditingController();
@@ -11,7 +9,9 @@ class AddEditProductController {
   final quantityController = TextEditingController();
   final minQuantityController = TextEditingController();
 
-  String? saveProduct(BuildContext context) {
+  final ProductService _productService = ProductService();
+
+  Future<String?> saveProduct() async {
     final String name = nameController.text;
     final String priceText = priceController.text;
     final String category = categoryController.text;
@@ -30,8 +30,6 @@ class AddEditProductController {
       if (price == null || quantity == null || minQuantity == null) {
         return 'Os campos de preço e quantidade devem conter apenas números.';
       }
-      
-      // AQUI ESTÁ A SUA CORREÇÃO APLICADA!
       if (price <= 0) {
         return 'O preço deve ser um valor positivo.';
       }
@@ -43,7 +41,7 @@ class AddEditProductController {
       }
 
       final newProduct = ProductModel(
-        id: Random().nextInt(999999).toString(),
+        id: '', // O Firestore vai gerar o ID
         name: name,
         price: price,
         category: category,
@@ -51,13 +49,13 @@ class AddEditProductController {
         minimumQuantity: minQuantity,
       );
 
-      final productController = Provider.of<ProductController>(context, listen: false);
-      productController.addProduct(newProduct);
+      // AQUI ESTÁ A CORREÇÃO: Chamando o _productService
+      await _productService.addProduct(newProduct);
       
       return null;
 
     } catch (e) {
-      return 'Ocorreu um erro ao salvar. Verifique os valores inseridos.';
+      return 'Ocorreu um erro ao salvar: ${e.toString()}';
     }
   }
 }
