@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
+import 'package:stocklite_app/data/services/category_service.dart';
 import 'package:stocklite_app/data/services/product_service.dart';
 import 'package:stocklite_app/modules/about/views/about_screen.dart';
 import 'package:stocklite_app/modules/home/controllers/product_controller.dart';
 import 'package:stocklite_app/modules/home/views/add_edit_product_screen.dart';
+// 1. IMPORTANDO A NOSSA NOVA TELA DE BUSCA
+import 'package:stocklite_app/modules/home/views/search_screen.dart';
+import 'package:stocklite_app/data/services/supplier_service.dart';
 
 // As classes de aba vêm primeiro
 class CatalogTab extends StatelessWidget {
@@ -24,10 +28,14 @@ class CatalogTab extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(child: Text('Erro ao carregar produtos: ${snapshot.error}'));
+              return Center(
+                child: Text('Erro ao carregar produtos: ${snapshot.error}'),
+              );
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Center(child: Text('Nenhum produto cadastrado ainda.'));
+              return const Center(
+                child: Text('Nenhum produto cadastrado ainda.'),
+              );
             }
 
             List<ProductModel> products = snapshot.data!;
@@ -39,11 +47,17 @@ class CatalogTab extends StatelessWidget {
               products = products.where((p) => p.category == category).toList();
             }
             if (query.isNotEmpty) {
-              products = products.where((p) => p.name.toLowerCase().contains(query.toLowerCase())).toList();
+              products = products
+                  .where(
+                    (p) => p.name.toLowerCase().contains(query.toLowerCase()),
+                  )
+                  .toList();
             }
-            
+
             if (products.isEmpty) {
-              return const Center(child: Text('Nenhum produto encontrado para este filtro.'));
+              return const Center(
+                child: Text('Nenhum produto encontrado para este filtro.'),
+              );
             }
 
             return isGridView
@@ -64,16 +78,47 @@ class CatalogTab extends StatelessWidget {
         final isLowStock = product.quantity <= product.minimumQuantity;
         return Card(
           child: ListTile(
-            leading: Icon(Icons.shopping_bag_outlined, color: isLowStock ? Colors.red : Colors.deepPurple, size: 40),
-            title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text('${product.category} - R\$ ${product.price.toStringAsFixed(2)}'),
+            leading: Icon(
+              Icons.shopping_bag_outlined,
+              color: isLowStock ? Colors.red : Colors.deepPurple,
+              size: 40,
+            ),
+            title: Text(
+              product.name,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              '${product.category} - R\$ ${product.price.toStringAsFixed(2)}',
+            ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity - 1)),
-                Text('${product.quantity}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
-                IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity + 1)),
-                IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _showDeleteConfirmDialog(context, product)),
+                IconButton(
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () => _productService.updateQuantity(
+                    product.id,
+                    product.quantity - 1,
+                  ),
+                ),
+                Text(
+                  '${product.quantity}',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: isLowStock ? Colors.red : Colors.black,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () => _productService.updateQuantity(
+                    product.id,
+                    product.quantity + 1,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  onPressed: () => _showDeleteConfirmDialog(context, product),
+                ),
               ],
             ),
           ),
@@ -85,7 +130,12 @@ class CatalogTab extends StatelessWidget {
   Widget _buildGridView(BuildContext context, List<ProductModel> products) {
     return GridView.builder(
       padding: const EdgeInsets.all(8.0),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 8, mainAxisSpacing: 8, childAspectRatio: 0.75),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.75,
+      ),
       itemCount: products.length,
       itemBuilder: (context, index) {
         final product = products[index];
@@ -96,20 +146,65 @@ class CatalogTab extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Align(alignment: Alignment.topRight, child: isLowStock ? const Icon(Icons.warning_amber_rounded, color: Colors.red) : const SizedBox(height: 24)),
-                Expanded(child: Center(child: Icon(Icons.shopping_bag_outlined, color: isLowStock ? Colors.red : Colors.deepPurple, size: 40))),
-                Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                Align(
+                  alignment: Alignment.topRight,
+                  child: isLowStock
+                      ? const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.red,
+                        )
+                      : const SizedBox(height: 24),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Icon(
+                      Icons.shopping_bag_outlined,
+                      color: isLowStock ? Colors.red : Colors.deepPurple,
+                      size: 40,
+                    ),
+                  ),
+                ),
+                Text(
+                  product.name,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 Text('R\$ ${product.price.toStringAsFixed(2)}'),
                 const Spacer(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity - 1)),
-                    Text('${product.quantity}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity + 1)),
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: () => _productService.updateQuantity(
+                        product.id,
+                        product.quantity - 1,
+                      ),
+                    ),
+                    Text(
+                      '${product.quantity}',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isLowStock ? Colors.red : Colors.black,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: () => _productService.updateQuantity(
+                        product.id,
+                        product.quantity + 1,
+                      ),
+                    ),
                   ],
                 ),
-                Center(child: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _showDeleteConfirmDialog(context, product))),
+                Center(
+                  child: IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () => _showDeleteConfirmDialog(context, product),
+                  ),
+                ),
               ],
             ),
           ),
@@ -117,16 +212,21 @@ class CatalogTab extends StatelessWidget {
       },
     );
   }
-  
+
   void _showDeleteConfirmDialog(BuildContext context, ProductModel product) {
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
         return AlertDialog(
           title: const Text('Confirmar Exclusão'),
-          content: Text('Tem certeza de que deseja excluir o item "${product.name}"? Esta ação não pode ser desfeita.'),
+          content: Text(
+            'Tem certeza de que deseja excluir o item "${product.name}"? Esta ação não pode ser desfeita.',
+          ),
           actions: <Widget>[
-            TextButton(child: const Text('CANCELAR'), onPressed: () => Navigator.of(ctx).pop()),
+            TextButton(
+              child: const Text('CANCELAR'),
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
             TextButton(
               child: const Text('EXCLUIR', style: TextStyle(color: Colors.red)),
               onPressed: () {
@@ -147,24 +247,28 @@ class SummaryTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final productService = ProductService();
-    
+    final category_service = CategoryService();
+    final supplier_service = SupplierService(); // NOVO SERVIÇO
+
+    final categoryNameController = TextEditingController();
+    final supplierNameController = TextEditingController(); // NOVO CONTROLLER
+
     return StreamBuilder<List<ProductModel>>(
       stream: productService.getProductsStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        if (snapshot.hasError) {
-          return Center(child: Text('Erro: ${snapshot.error}'));
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('Nenhum produto cadastrado.'));
+
+        List<ProductModel> allProducts = [];
+        if (snapshot.hasData) {
+          allProducts = snapshot.data!;
         }
 
-        final allProducts = snapshot.data!;
-        
         final int totalUniqueProducts = allProducts.length;
-        final productsToRestock = allProducts.where((p) => p.quantity <= p.minimumQuantity).toList();
+        final productsToRestock = allProducts
+            .where((p) => p.quantity <= p.minimumQuantity)
+            .toList();
         final double restockCost = productsToRestock.fold(0.0, (sum, p) {
           int needed = p.minimumQuantity - p.quantity;
           return sum + (needed > 0 ? (p.price * needed) : 0.0);
@@ -175,6 +279,7 @@ class SummaryTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // CARD DE MÉTRICAS
               Card(
                 elevation: 4,
                 child: Padding(
@@ -182,17 +287,119 @@ class SummaryTab extends StatelessWidget {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildSummaryInfo('Itens Únicos', totalUniqueProducts.toString()),
-                      _buildSummaryInfo('Custo p/ Repor', 'R\$ ${restockCost.toStringAsFixed(2)}'),
+                      _buildSummaryInfo(
+                        'Itens Únicos',
+                        totalUniqueProducts.toString(),
+                      ),
+                      _buildSummaryInfo(
+                        'Custo p/ Repor',
+                        'R\$ ${restockCost.toStringAsFixed(2)}',
+                      ),
                     ],
                   ),
                 ),
               ),
               const SizedBox(height: 24),
-              const Text('Itens para Repor', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+
+              // --- GERENCIAR CATEGORIAS ---
+              const Text(
+                'Gerenciar Categorias',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
               const Divider(),
-              const SizedBox(height: 8),
-              if (productsToRestock.isEmpty) const Center(child: Text('Nenhum item com estoque baixo. Parabéns!')),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: categoryNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Nova Categoria',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.add_circle,
+                      color: Colors.deepPurple,
+                      size: 40,
+                    ),
+                    onPressed: () async {
+                      if (categoryNameController.text.isNotEmpty) {
+                        await category_service.addCategory(
+                          categoryNameController.text,
+                        );
+                        categoryNameController.clear();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Categoria adicionada!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // --- NOVO: GERENCIAR FORNECEDORES ---
+              const Text(
+                'Gerenciar Fornecedores',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Divider(),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: supplierNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Novo Fornecedor',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.store,
+                      color: Colors.deepPurple,
+                      size: 40,
+                    ),
+                    onPressed: () async {
+                      if (supplierNameController.text.isNotEmpty) {
+                        await supplier_service.addSupplier(
+                          supplierNameController.text,
+                        );
+                        supplierNameController.clear();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Fornecedor adicionado!'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // --- LISTA DE REPOSIÇÃO ---
+              const Text(
+                'Itens para Repor',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              ),
+              const Divider(),
+              if (productsToRestock.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text('Nenhum item com estoque baixo.'),
+                  ),
+                ),
               if (productsToRestock.isNotEmpty)
                 ListView.builder(
                   shrinkWrap: true,
@@ -203,9 +410,22 @@ class SummaryTab extends StatelessWidget {
                     return Card(
                       color: Colors.red.shade50,
                       child: ListTile(
-                        leading: const Icon(Icons.warning_amber_rounded, color: Colors.red),
-                        title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        trailing: Text('Qtd: ${product.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
+                        leading: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.red,
+                        ),
+                        title: Text(
+                          product.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        trailing: Text(
+                          'Qtd: ${product.quantity}',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -222,7 +442,10 @@ class SummaryTab extends StatelessWidget {
       children: [
         Text(title, style: const TextStyle(fontSize: 16, color: Colors.grey)),
         const SizedBox(height: 4),
-        Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
       ],
     );
   }
@@ -238,11 +461,10 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isGridView = false;
-  final _searchController = TextEditingController();
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // Não precisamos mais do searchController aqui
     super.dispose();
   }
 
@@ -254,44 +476,44 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final productController = Provider.of<ProductController>(context, listen: false);
+    final productController = Provider.of<ProductController>(
+      context,
+      listen: false,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: _selectedIndex == 0
-            ? TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Buscar produtos...',
-                  border: InputBorder.none,
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear),
-                          onPressed: () {
-                            _searchController.clear();
-                            productController.search('');
-                            setState(() {}); 
-                          },
-                        )
-                      : null,
-                ),
-                onChanged: (query) {
-                  productController.search(query);
-                  setState(() {}); 
-                },
-              )
-            : const Text('Resumo'),
+        // 2. O TÍTULO VOLTA A SER UM TEXTO SIMPLES
+        title: Text(_selectedIndex == 0 ? 'Catálogo' : 'Resumo'),
         automaticallyImplyLeading: false,
         actions: [
+          // 3. NOVO BOTÃO DE BUSCA
+          if (_selectedIndex == 0)
+            IconButton(
+              icon: const Icon(Icons.search),
+              tooltip: 'Buscar',
+              onPressed: () {
+                // Navega para a nossa nova tela de busca
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const SearchScreen()),
+                );
+              },
+            ),
+
           if (_selectedIndex == 0)
             PopupMenuButton<String>(
               icon: const Icon(Icons.filter_list_rounded),
               tooltip: 'Filtrar por Categoria',
               onSelected: (String? value) {
-                productController.filterByCategory(value == 'all' ? null : value);
+                productController.filterByCategory(
+                  value == 'all' ? null : value,
+                );
               },
               itemBuilder: (BuildContext context) {
-                final categories = context.read<ProductController>().uniqueCategories;
+                // Usamos 'context.watch' para o menu se atualizar dinamicamente
+                final categories = context
+                    .watch<ProductController>()
+                    .uniqueCategories;
                 return [
                   const PopupMenuItem<String>(
                     value: 'all',
@@ -308,7 +530,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           if (_selectedIndex == 0)
             IconButton(
-              icon: Icon(_isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded),
+              icon: Icon(
+                _isGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+              ),
               onPressed: () {
                 setState(() {
                   _isGridView = !_isGridView;
@@ -318,24 +542,38 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.info_outline),
             onPressed: () {
-              Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AboutScreen()));
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => const AboutScreen()),
+              );
             },
           ),
         ],
       ),
-      body: _selectedIndex == 0 ? CatalogTab(isGridView: _isGridView) : const SummaryTab(),
+      body: _selectedIndex == 0
+          ? CatalogTab(isGridView: _isGridView)
+          : const SummaryTab(),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AddEditProductScreen()));
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const AddEditProductScreen(),
+                  ),
+                );
               },
               child: const Icon(Icons.add),
             )
           : null,
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.view_list_rounded), label: 'Catálogo'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Resumo'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.view_list_rounded),
+            label: 'Catálogo',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.bar_chart_rounded),
+            label: 'Resumo',
+          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.deepPurple,

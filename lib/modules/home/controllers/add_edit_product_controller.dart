@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
 import 'package:stocklite_app/data/services/product_service.dart';
+import 'dart:math';
 
 class AddEditProductController {
   final nameController = TextEditingController();
@@ -8,6 +9,8 @@ class AddEditProductController {
   final categoryController = TextEditingController();
   final quantityController = TextEditingController();
   final minQuantityController = TextEditingController();
+  // Controller novo para o fornecedor
+  final supplierController = TextEditingController();
 
   final ProductService _productService = ProductService();
 
@@ -17,8 +20,9 @@ class AddEditProductController {
     final String category = categoryController.text;
     final String quantityText = quantityController.text;
     final String minQuantityText = minQuantityController.text;
+    final String supplier = supplierController.text;
 
-    if (name.trim().isEmpty || priceText.trim().isEmpty || category.trim().isEmpty || quantityText.trim().isEmpty || minQuantityText.trim().isEmpty) {
+    if (name.trim().isEmpty || priceText.trim().isEmpty || category.trim().isEmpty || quantityText.trim().isEmpty || minQuantityText.trim().isEmpty || supplier.trim().isEmpty) {
       return 'Por favor, preencha todos os campos.';
     }
 
@@ -47,9 +51,9 @@ class AddEditProductController {
         category: category,
         quantity: quantity,
         minimumQuantity: minQuantity,
+        supplier: supplier,
       );
 
-      // AQUI ESTÁ A CORREÇÃO: Chamando o _productService
       await _productService.addProduct(newProduct);
       
       return null;
