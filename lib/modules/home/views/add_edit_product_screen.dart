@@ -7,7 +7,6 @@ import 'package:stocklite_app/modules/home/controllers/add_edit_product_controll
 
 class AddEditProductScreen extends StatefulWidget {
   const AddEditProductScreen({super.key});
-
   @override
   State<AddEditProductScreen> createState() => _AddEditProductScreenState();
 }
@@ -19,20 +18,74 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
 
   String? _selectedCategory;
   String? _selectedSupplier;
+  bool _isSearching = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Adicionar Produto'),
-      ),
+      appBar: AppBar(title: const Text('Adicionar Produto')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: _controller.barcodeController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Código de Barras (EAN)',
+                      prefixIcon: Icon(Icons.qr_code),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.deepPurple.shade50,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.all(16),
+                  ),
+                  icon: _isSearching 
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.search, color: Colors.deepPurple),
+                  
+                  // A LÓGICA FINAL E CORRETA
+                  onPressed: () async {
+                    setState(() => _isSearching = true); // 1. Começa o loading
+                    
+                    try {
+                      // 2. Tenta buscar o nome do produto
+                      final productName = await _controller.searchByBarcode();
+
+                      // 3. ATUALIZA O CONTROLLER PRIMEIRO!
+                      _controller.nameController.text = productName;
+                      
+                      // 4. SÓ DEPOIS, ATUALIZA A TELA (para o spinner)
+                      setState(() => _isSearching = false); 
+
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto encontrado!'), backgroundColor: Colors.green));
+
+                    } catch (e) {
+                      // 5. ERRO!
+                      setState(() => _isSearching = false); // Para o loading
+                      
+                      if (!context.mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+                    }
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            
             TextFormField(
-              controller: _controller.nameController,
+              controller: _controller.nameController, // O TextFormFiedl está ouvindo aqui
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Nome do Produto',
@@ -53,71 +106,57 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             ),
             const SizedBox(height: 16),
 
-            // --- DROPDOWN DE CATEGORIA ---
+            // Dropdown Categoria
             StreamBuilder<List<CategoryModel>>(
               stream: _categoryService.getCategoriesStream(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                if (snapshot.data!.isEmpty) return const Text('Nenhuma categoria cadastrada.');
-
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Text('Erro ao carregar categorias: ${snapshot.error}');
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Text('Nenhuma categoria cadastrada.');
+                }
                 final categories = snapshot.data!;
-                
                 if (_selectedCategory == null || !categories.any((c) => c.name == _selectedCategory)) {
                   _selectedCategory = categories.first.name;
                   _controller.categoryController.text = _selectedCategory!;
                 }
-
                 return DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Categoria',
-                    prefixIcon: Icon(Icons.category_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Categoria', prefixIcon: Icon(Icons.category_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                   value: _selectedCategory,
-                  items: categories.map((CategoryModel category) {
-                    return DropdownMenuItem<String>(value: category.name, child: Text(category.name));
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedCategory = newValue;
-                      _controller.categoryController.text = newValue ?? '';
-                    });
-                  },
+                  items: categories.map((c) => DropdownMenuItem(value: c.name, child: Text(c.name))).toList(),
+                  onChanged: (v) => setState(() { _selectedCategory = v; _controller.categoryController.text = v ?? ''; }),
                 );
               },
             ),
             const SizedBox(height: 16),
 
-            // --- DROPDOWN DE FORNECEDOR ---
+            // Dropdown Fornecedor
             StreamBuilder<List<SupplierModel>>(
               stream: _supplierService.getSuppliersStream(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                if (snapshot.data!.isEmpty) return const Text('Nenhum fornecedor cadastrado. Adicione na tela de Resumo.');
-
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Text('Erro ao carregar fornecedores: ${snapshot.error}');
+                }
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const Text('Nenhum fornecedor cadastrado.');
+                }
                 final suppliers = snapshot.data!;
-                
                 if (_selectedSupplier == null || !suppliers.any((s) => s.name == _selectedSupplier)) {
                   _selectedSupplier = suppliers.first.name;
                   _controller.supplierController.text = _selectedSupplier!;
                 }
-
                 return DropdownButtonFormField<String>(
-                  decoration: const InputDecoration(
-                    labelText: 'Fornecedor',
-                    prefixIcon: Icon(Icons.store_outlined),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Fornecedor', prefixIcon: Icon(Icons.store_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                   value: _selectedSupplier,
-                  items: suppliers.map((SupplierModel supplier) {
-                    return DropdownMenuItem<String>(value: supplier.name, child: Text(supplier.name));
-                  }).toList(),
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      _selectedSupplier = newValue;
-                      _controller.supplierController.text = newValue ?? '';
-                    });
-                  },
+                  items: suppliers.map((s) => DropdownMenuItem(value: s.name, child: Text(s.name))).toList(),
+                  onChanged: (v) => setState(() { _selectedSupplier = v; _controller.supplierController.text = v ?? ''; }),
                 );
               },
             ),
@@ -125,53 +164,22 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             
             Row(
               children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _controller.quantityController,
-                    textInputAction: TextInputAction.next,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Quantidade',
-                      prefixIcon: Icon(Icons.inventory_2_outlined),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                    ),
-                  ),
-                ),
+                Expanded(child: TextFormField(controller: _controller.quantityController, textInputAction: TextInputAction.next, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Quantidade', prefixIcon: Icon(Icons.inventory_2_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))))),
                 const SizedBox(width: 16),
-                Expanded(
-                  child: TextFormField(
-                    controller: _controller.minQuantityController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Qtd. Mínima',
-                      prefixIcon: Icon(Icons.warning_amber_rounded),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
-                    ),
-                  ),
-                ),
+                Expanded(child: TextFormField(controller: _controller.minQuantityController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Qtd. Mínima', prefixIcon: Icon(Icons.warning_amber_rounded), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))))),
               ],
             ),
             const SizedBox(height: 48),
 
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () async {
-                final String? errorMessage = await _controller.saveProduct();
-
+                final error = await _controller.saveProduct();
                 if (!context.mounted) return;
-                if (errorMessage != null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-                  );
+                if (error != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.red));
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Produto salvo com sucesso!'), backgroundColor: Colors.green),
-                  );
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto salvo!'), backgroundColor: Colors.green));
                   Navigator.of(context).pop();
                 }
               },
