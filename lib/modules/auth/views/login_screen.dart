@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:stocklite_app/modules/auth/controllers/login_controller.dart';
 import 'package:stocklite_app/modules/auth/views/forgot_password_screen.dart';
 import 'package:stocklite_app/modules/auth/views/signup_screen.dart';
-import 'package:stocklite_app/modules/home/views/home_screen.dart';
+
+// AQUI ESTÁ A LINHA QUE FALTAVA:
+import 'package:stocklite_app/modules/home/views/home_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,10 +15,8 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _controller = LoginController();
-
-  // NOVO: Uma variável de estado para controlar a visibilidade da senha.
-  // Começa como 'true' porque a senha deve iniciar escondida.
   bool _isPasswordObscured = true;
+  bool _isLoading = false; // Para o spinner do botão
 
   @override
   Widget build(BuildContext context) {
@@ -31,54 +31,43 @@ class _LoginScreenState extends State<LoginScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // ... (ícone e título não mudam)
-              const Icon(
-                Icons.inventory_2_outlined,
-                size: 80,
-                color: Colors.deepPurple,
+              const Icon(Icons.inventory_2_outlined, size: 80, color: Colors.deepPurple),
+              const SizedBox(height: 16),
+              const Text(
+                'Bem-vindo ao Stocklite',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Faça login para continuar',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               const SizedBox(height: 48),
 
-              // Campo de E-mail (não muda)
               TextFormField(
                 controller: _controller.emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: const InputDecoration(
                   labelText: 'E-mail',
                   prefixIcon: Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
                 ),
               ),
               const SizedBox(height: 16),
-
-              // --- CAMPO DE SENHA COM A MUDANÇA ---
+              
               TextFormField(
                 controller: _controller.passwordController,
-                // MUDANÇA: 'obscureText' agora depende da nossa variável de estado.
                 obscureText: _isPasswordObscured,
                 decoration: InputDecoration(
-                  // Removido o 'const' para poder usar variáveis
                   labelText: 'Senha',
                   prefixIcon: const Icon(Icons.lock_outline),
-                  border: const OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                  // NOVO: O ícone no final do campo (o "olho").
+                  border: const OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
                   suffixIcon: IconButton(
-                    // O ícone muda dependendo se a senha está visível ou não.
-                    icon: Icon(
-                      _isPasswordObscured
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    // A ação que acontece ao clicar no ícone.
+                    icon: Icon(_isPasswordObscured ? Icons.visibility_off : Icons.visibility),
                     onPressed: () {
-                      // setState é o comando que avisa o Flutter: "Ei, uma variável de estado
-                      // mudou, por favor, redesenhe a tela para mostrar a mudança!"
                       setState(() {
-                        // Invertemos o valor da variável (true vira false, false vira true).
                         _isPasswordObscured = !_isPasswordObscured;
                       });
                     },
@@ -87,52 +76,40 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
 
-              // ... (resto do código da tela não muda)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => const ForgotPasswordScreen(),
-                      ),
-                    );
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => const ForgotPasswordScreen(),
+                    ));
                   },
                   child: const Text('Esqueci minha senha'),
                 ),
               ),
               const SizedBox(height: 24),
+
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                // 1. O 'onPressed' agora é 'async' para poder usar 'await'.
-                onPressed: () async {
-                  // 2. Chamamos o método 'login' e 'await' (esperamos) pela resposta.
-                  // A resposta será 'null' (sucesso) ou uma String (mensagem de erro).
+                onPressed: _isLoading ? null : () async {
+                  setState(() => _isLoading = true);
                   final String? errorMessage = await _controller.login();
 
-                  // 3. Verificamos a resposta.
                   if (errorMessage == null) {
-                    // SUCESSO! O erro é nulo.
-                    // Navegamos para a HomeScreen.
-                    // (Usamos 'context.mounted' para garantir que a tela ainda existe
-                    // antes de navegar, é uma boa prática de segurança).
                     if (context.mounted) {
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(
-                          builder: (context) => const HomeScreen(),
+                          // AGORA O APP SABE QUEM É A HomeScreen
+                          builder: (context) => const HomeScreen(), 
                         ),
                       );
                     }
                   } else {
-                    // ERRO! A mensagem NÃO é nula.
-                    // Mostramos a mensagem de erro exata que o Firebase nos deu.
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -142,24 +119,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       );
                     }
                   }
+                  if(context.mounted) {
+                    setState(() => _isLoading = false);
+                  }
                 },
-                child: const Text(
-                  'ENTRAR',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isLoading
+                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text(
+                        'ENTRAR',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
               ),
               const SizedBox(height: 32),
+              
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Text('Não tem uma conta?'),
                   TextButton(
                     onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => const SignupScreen(),
-                        ),
-                      );
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (context) => const SignupScreen(),
+                      ));
                     },
                     child: const Text(
                       'Cadastre-se',
@@ -167,7 +148,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-              ),
+              )
             ],
           ),
         ),

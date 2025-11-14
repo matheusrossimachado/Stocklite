@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:stocklite_app/data/models/category_model.dart';
 import 'package:stocklite_app/data/models/product_model.dart';
+import 'package:stocklite_app/data/models/supplier_model.dart';
 import 'package:stocklite_app/data/services/category_service.dart';
 import 'package:stocklite_app/data/services/product_service.dart';
 import 'package:stocklite_app/data/services/supplier_service.dart';
@@ -35,21 +36,17 @@ class CatalogTab extends StatelessWidget {
             }
 
             List<ProductModel> products = snapshot.data!;
-
             final category = filterController.categoryFilter;
             final query = filterController.searchQuery;
-
             if (category != null) {
               products = products.where((p) => p.category == category).toList();
             }
             if (query.isNotEmpty) {
               products = products.where((p) => p.name.toLowerCase().contains(query.toLowerCase())).toList();
             }
-            
             if (products.isEmpty) {
               return const Center(child: Text('Nenhum produto encontrado para este filtro.'));
             }
-
             return isGridView
                 ? _buildGridView(context, products)
                 : _buildListView(context, products);
@@ -68,6 +65,11 @@ class CatalogTab extends StatelessWidget {
         final isLowStock = product.quantity <= product.minimumQuantity;
         return Card(
           child: ListTile(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => AddEditProductScreen(product: product)),
+              );
+            },
             leading: Icon(Icons.shopping_bag_outlined, color: isLowStock ? Colors.red : Colors.deepPurple, size: 40),
             title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text('${product.category} - R\$ ${product.price.toStringAsFixed(2)}'),
@@ -95,26 +97,34 @@ class CatalogTab extends StatelessWidget {
         final product = products[index];
         final isLowStock = product.quantity <= product.minimumQuantity;
         return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(alignment: Alignment.topRight, child: isLowStock ? const Icon(Icons.warning_amber_rounded, color: Colors.red) : const SizedBox(height: 24)),
-                Expanded(child: Center(child: Icon(Icons.shopping_bag_outlined, color: isLowStock ? Colors.red : Colors.deepPurple, size: 40))),
-                Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                Text('R\$ ${product.price.toStringAsFixed(2)}'),
-                const Spacer(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity - 1)),
-                    Text('${product.quantity}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
-                    IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity + 1)),
-                  ],
-                ),
-                Center(child: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _showDeleteConfirmDialog(context, product))),
-              ],
+          child: InkWell(
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (context) => AddEditProductScreen(product: product)),
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(alignment: Alignment.topRight, child: isLowStock ? const Icon(Icons.warning_amber_rounded, color: Colors.red) : const SizedBox(height: 24)),
+                  Expanded(child: Center(child: Icon(Icons.shopping_bag_outlined, color: isLowStock ? Colors.red : Colors.deepPurple, size: 40))),
+                  Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text('R\$ ${product.price.toStringAsFixed(2)}'),
+                  const Spacer(),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      IconButton(icon: const Icon(Icons.remove_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity - 1)),
+                      Text('${product.quantity}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
+                      IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: () => _productService.updateQuantity(product.id, product.quantity + 1)),
+                    ],
+                  ),
+                  Center(child: IconButton(icon: const Icon(Icons.delete_outline, color: Colors.red), onPressed: () => _showDeleteConfirmDialog(context, product))),
+                ],
+              ),
             ),
           ),
         );
@@ -144,31 +154,23 @@ class CatalogTab extends StatelessWidget {
     );
   }
 }
-
 class SummaryTab extends StatelessWidget {
   const SummaryTab({super.key});
 
   @override
   Widget build(BuildContext context) {
     final productService = ProductService();
-    final category_service = CategoryService();
-    final supplier_service = SupplierService();
+    final categoryService = CategoryService();
+    final supplierService = SupplierService();
     
     final categoryNameController = TextEditingController();
     final supplierNameController = TextEditingController();
 
     return StreamBuilder<List<ProductModel>>(
       stream: productService.getProductsStream(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+      builder: (context, productSnapshot) {
         
-        List<ProductModel> allProducts = [];
-        if (snapshot.hasData) {
-          allProducts = snapshot.data!;
-        }
-        
+        List<ProductModel> allProducts = productSnapshot.data ?? [];
         final int totalUniqueProducts = allProducts.length;
         final productsToRestock = allProducts.where((p) => p.quantity <= p.minimumQuantity).toList();
         final double restockCost = productsToRestock.fold(0.0, (sum, p) {
@@ -210,16 +212,52 @@ class SummaryTab extends StatelessWidget {
                     icon: const Icon(Icons.add_circle, color: Colors.deepPurple, size: 40),
                     onPressed: () async {
                       if (categoryNameController.text.isNotEmpty) {
-                        await category_service.addCategory(categoryNameController.text);
+                        await categoryService.addCategory(categoryNameController.text);
                         categoryNameController.clear();
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Categoria adicionada!'), backgroundColor: Colors.green));
                       }
                     },
                   ),
                 ],
               ),
+              StreamBuilder<List<CategoryModel>>(
+                stream: categoryService.getCategoriesStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Padding(padding: EdgeInsets.all(8.0), child: Text('Nenhuma categoria cadastrada.'));
+                  }
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      final category = snapshot.data![index];
+                      return Card(
+                        child: ListTile(
+                          title: Text(category.name),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // --- BOTÃO DE EDITAR NOVO ---
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                                onPressed: () => _showEditCategoryDialog(context, category, categoryService),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                onPressed: () => _showDeleteCategoryDialog(context, category, categoryService),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
               const SizedBox(height: 24),
-
               const Text('Gerenciar Fornecedores', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
               const Divider(),
               Row(
@@ -235,16 +273,52 @@ class SummaryTab extends StatelessWidget {
                     icon: const Icon(Icons.store, color: Colors.deepPurple, size: 40),
                     onPressed: () async {
                       if (supplierNameController.text.isNotEmpty) {
-                        await supplier_service.addSupplier(supplierNameController.text);
+                        await supplierService.addSupplier(supplierNameController.text);
                         supplierNameController.clear();
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Fornecedor adicionado!'), backgroundColor: Colors.green));
                       }
                     },
                   ),
                 ],
               ),
+              StreamBuilder<List<SupplierModel>>(
+                stream: supplierService.getSuppliersStream(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator()));
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Padding(padding: EdgeInsets.all(8.0), child: Text('Nenhum fornecedor cadastrado.'));
+                  }
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: snapshot.data!.length,
+                    itemBuilder: (context, index) {
+                      final supplier = snapshot.data![index];
+                      return Card(
+                        child: ListTile(
+                          title: Text(supplier.name),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // --- BOTÃO DE EDITAR NOVO ---
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, color: Colors.blue),
+                                onPressed: () => _showEditSupplierDialog(context, supplier, supplierService),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                onPressed: () => _showDeleteSupplierDialog(context, supplier, supplierService),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
               const SizedBox(height: 24),
-              
               const Text('Itens para Repor', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
               const Divider(),
               if (productsToRestock.isEmpty) const Center(child: Padding(padding: EdgeInsets.all(8.0), child: Text('Nenhum item com estoque baixo.'))),
@@ -259,6 +333,7 @@ class SummaryTab extends StatelessWidget {
                       color: Colors.red.shade50,
                       child: ListTile(
                         leading: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                        // ***** LINHA CORRIGIDA AQUI *****
                         title: Text(product.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                         trailing: Text('Qtd: ${product.quantity}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red)),
                       ),
@@ -281,15 +356,119 @@ class SummaryTab extends StatelessWidget {
       ],
     );
   }
-}
+  
+  // --- MÉTODO DE DIÁLOGO DE EDIÇÃO (NOVO) ---
+  void _showEditCategoryDialog(BuildContext context, CategoryModel category, CategoryService service) {
+    final editController = TextEditingController(text: category.name);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Editar Categoria'),
+          content: TextField(
+            controller: editController,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Nome da Categoria'),
+          ),
+          actions: <Widget>[
+            TextButton(child: const Text('CANCELAR'), onPressed: () => Navigator.of(ctx).pop()),
+            TextButton(
+              child: const Text('SALVAR', style: TextStyle(color: Colors.blue)),
+              onPressed: () {
+                if (editController.text.isNotEmpty) {
+                  service.updateCategory(category.id, editController.text);
+                  Navigator.of(ctx).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
+  void _showDeleteCategoryDialog(BuildContext context, CategoryModel category, CategoryService service) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Confirmar Exclusão'),
+          content: Text('Tem certeza de que deseja excluir a categoria "${category.name}"?'),
+          actions: <Widget>[
+            TextButton(child: const Text('CANCELAR'), onPressed: () => Navigator.of(ctx).pop()),
+            TextButton(
+              child: const Text('EXCLUIR', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                service.deleteCategory(category.id);
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // --- MÉTODO DE DIÁLOGO DE EDIÇÃO (NOVO) ---
+  void _showEditSupplierDialog(BuildContext context, SupplierModel supplier, SupplierService service) {
+    final editController = TextEditingController(text: supplier.name);
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Editar Fornecedor'),
+          content: TextField(
+            controller: editController,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Nome do Fornecedor'),
+          ),
+          actions: <Widget>[
+            TextButton(child: const Text('CANCELAR'), onPressed: () => Navigator.of(ctx).pop()),
+            TextButton(
+              child: const Text('SALVAR', style: TextStyle(color: Colors.blue)),
+              onPressed: () {
+                if (editController.text.isNotEmpty) {
+                  service.updateSupplier(supplier.id, editController.text);
+                  Navigator.of(ctx).pop();
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteSupplierDialog(BuildContext context, SupplierModel supplier, SupplierService service) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text('Confirmar Exclusão'),
+          content: Text('Tem certeza de que deseja excluir o fornecedor "${supplier.name}"?'),
+          actions: <Widget>[
+            TextButton(child: const Text('CANCELAR'), onPressed: () => Navigator.of(ctx).pop()),
+            TextButton(
+              child: const Text('EXCLUIR', style: TextStyle(color: Colors.red)),
+              onPressed: () {
+                service.deleteSupplier(supplier.id);
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
 // A HomeScreen (Stateful) vem por último
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
-
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
   bool _isGridView = false;
@@ -308,7 +487,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final productController = Provider.of<ProductController>(context, listen: false);
-    // INSTANCIAMOS O NOVO SERVIÇO DE CATEGORIA AQUI
     final categoryService = CategoryService();
 
     return Scaffold(
@@ -327,23 +505,18 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
           
-          // --- AQUI ESTÁ A GRANDE MUDANÇA ---
-          // "Envelopamos" o botão de filtro com um StreamBuilder
           if (_selectedIndex == 0)
             StreamBuilder<List<CategoryModel>>(
-              // Lemos o "rio" de categorias do serviço
               stream: categoryService.getCategoriesStream(),
               builder: (context, snapshot) {
-                // Se não tiver dados, mostramos um ícone de filtro desabilitado
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const IconButton(
                     icon: Icon(Icons.filter_list_rounded),
-                    onPressed: null, // Botão desabilitado
+                    onPressed: null,
                     disabledColor: Colors.grey,
                   );
                 }
                 
-                // Se temos dados, mostramos o botão de filtro real!
                 final categories = snapshot.data!;
                 return PopupMenuButton<String>(
                   icon: const Icon(Icons.filter_list_rounded),
@@ -357,7 +530,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         value: 'all',
                         child: Text('Todas as Categorias'),
                       ),
-                      // Mapeamos a lista de MODELOS de Categoria vinda do Firestore
                       ...categories.map((CategoryModel category) {
                         return PopupMenuItem<String>(
                           value: category.name,
@@ -391,7 +563,9 @@ class _HomeScreenState extends State<HomeScreen> {
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
               onPressed: () {
-                Navigator.of(context).push(MaterialPageRoute(builder: (context) => const AddEditProductScreen()));
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const AddEditProductScreen(product: null)),
+                );
               },
               child: const Icon(Icons.add),
             )

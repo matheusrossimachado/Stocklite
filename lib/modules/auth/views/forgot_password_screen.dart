@@ -1,28 +1,34 @@
 import 'package:flutter/material.dart';
+// 1. IMPORTANDO O NOVO CONTROLLER
+import 'package:stocklite_app/modules/auth/controllers/forgot_password_controller.dart';
 
-// A tela para o usuário recuperar a senha.
-class ForgotPasswordScreen extends StatelessWidget {
+// 2. CONVERTIDO PARA STATEFULWIDGET
+// Para podermos ter o controller do campo de texto
+class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
+
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  // 3. INSTANCIANDO O CONTROLLER
+  final _controller = ForgotPasswordController();
+  bool _isLoading = false; // Para mostrar um spinner de loading
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // A AppBar com fundo transparente e sem sombra para um visual limpo.
-      // O Flutter adiciona o botão de "voltar" aqui para nós.
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        title: const Text('Recuperar Senha'),
       ),
-      // O SingleChildScrollView para garantir que a tela seja rolável.
       body: SingleChildScrollView(
-        // Padding para dar o espaçamento lateral padrão.
-        padding: const EdgeInsets.symmetric(horizontal: 24.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- 1. Ícone e Título ---
-            // Um ícone para dar um contexto visual à ação.
+            // ... (Ícone e Títulos que já tínhamos) ...
             const Icon(
               Icons.lock_reset_rounded,
               size: 80,
@@ -32,25 +38,19 @@ class ForgotPasswordScreen extends StatelessWidget {
             const Text(
               'Esqueceu sua senha?',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
-              'Sem problemas! Insira seu e-mail abaixo que enviaremos um link para você redefinir sua senha.',
+              'Insira seu e-mail abaixo que enviaremos um link para você redefinir sua senha.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 48),
 
-            // --- 2. Campo de E-mail ---
-            // O único campo necessário nesta tela.
+            // 4. CAMPO DE E-MAIL CONECTADO
             TextFormField(
+              controller: _controller.emailController, // Conectado!
               keyboardType: TextInputType.emailAddress,
               decoration: const InputDecoration(
                 labelText: 'E-mail',
@@ -62,8 +62,7 @@ class ForgotPasswordScreen extends StatelessWidget {
             ),
             const SizedBox(height: 32),
 
-            // --- 3. Botão de Enviar ---
-            // O botão principal para executar a ação.
+            // 5. BOTÃO DE ENVIAR COM LÓGICA 'async'
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
@@ -73,20 +72,49 @@ class ForgotPasswordScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () {
-                // No futuro, aqui ficará a lógica para chamar o Firebase
-                // ou outro serviço para enviar o e-mail de recuperação.
-                // Por agora, podemos apenas voltar para a tela de login.
-                Navigator.of(context).pop();
+              onPressed: _isLoading ? null : () async { // Desabilita o botão se estiver carregando
+                setState(() => _isLoading = true); // Inicia o loading
+                
+                final String? errorMessage = await _controller.sendPasswordResetEmail();
+
+                if (!context.mounted) return;
+
+                if (errorMessage == null) {
+                  // SUCESSO!
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Link de recuperação enviado! Verifique seu e-mail.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                  Navigator.of(context).pop(); // Volta para o login
+                } else {
+                  // ERRO!
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(errorMessage),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+                
+                setState(() => _isLoading = false); // Para o loading
               },
-              child: const Text(
-                'ENVIAR LINK',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
+              // 6. MOSTRA O SPINNER OU O TEXTO NO BOTÃO
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                    )
+                  : const Text(
+                      'ENVIAR LINK',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
             ),
           ],
         ),
       ),
     );
   }
-}   
+}

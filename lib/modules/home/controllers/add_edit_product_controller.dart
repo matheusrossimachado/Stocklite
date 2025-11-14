@@ -1,6 +1,6 @@
-import 'dart:convert';
+import 'dart:convert'; // IMPORT QUE FALTAVA
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:http/http.dart' as http; // IMPORT QUE FALTAVA
 import 'package:stocklite_app/data/models/product_model.dart';
 import 'package:stocklite_app/data/services/product_service.dart';
 import 'dart:math';
@@ -16,22 +16,18 @@ class AddEditProductController {
 
   final ProductService _productService = ProductService();
 
-  // --- API (RF007) - VERSÃO CORRIGIDA ---
+  // Método da API que já tínhamos feito
   Future<String> searchByBarcode() async {
     final barcode = barcodeController.text.trim();
     if (barcode.isEmpty) throw Exception('Digite um código de barras.');
-
     try {
       final url = Uri.parse('https://world.openfoodfacts.org/api/v0/product/$barcode.json');
       final response = await http.get(url);
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        
         if (data['status'] == 1) {
           final productName = data['product']['product_name'];
           if (productName != null && productName.isNotEmpty) {
-            // SUCESSO! Retorna o nome para a tela.
             return productName; 
           } else {
             throw Exception('Produto encontrado, mas sem nome cadastrado.');
@@ -43,12 +39,12 @@ class AddEditProductController {
         throw Exception('Erro ao conectar com a API.');
       }
     } catch (e) {
-      rethrow; // Re-lança o erro para a tela tratar
+      rethrow;
     }
   }
-
-  // O método saveProduct() não muda
-  Future<String?> saveProduct() async {
+  
+  // MÉTODO ATUALIZADO PARA LIDAR COM CRIAR E EDITAR
+  Future<String?> saveProduct(ProductModel? existingProduct) async {
     final String name = nameController.text;
     final String priceText = priceController.text;
     final String category = categoryController.text;
@@ -72,8 +68,8 @@ class AddEditProductController {
       if (quantity < 0) return 'A quantidade não pode ser negativa.';
       if (minQuantity < 0) return 'A quantidade mínima não pode ser negativa.';
 
-      final newProduct = ProductModel(
-        id: '', 
+      final product = ProductModel(
+        id: existingProduct?.id ?? '', 
         name: name,
         price: price,
         category: category,
@@ -82,7 +78,15 @@ class AddEditProductController {
         supplier: supplier,
       );
 
-      await _productService.addProduct(newProduct);
+      // AQUI ESTÁ A LÓGICA DE DECISÃO (RF004)
+      if (existingProduct == null) {
+        // MODO CRIAR: Chama o 'addProduct'
+        await _productService.addProduct(product);
+      } else {
+        // MODO EDITAR: Chama o 'updateProduct'
+        await _productService.updateProduct(existingProduct.id, product);
+      }
+      
       return null;
 
     } catch (e) {

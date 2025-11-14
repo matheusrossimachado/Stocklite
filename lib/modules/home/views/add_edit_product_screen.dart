@@ -4,9 +4,14 @@ import 'package:stocklite_app/data/models/supplier_model.dart';
 import 'package:stocklite_app/data/services/category_service.dart';
 import 'package:stocklite_app/data/services/supplier_service.dart';
 import 'package:stocklite_app/modules/home/controllers/add_edit_product_controller.dart';
+import 'package:stocklite_app/data/models/product_model.dart'; // Importando o ProductModel
 
 class AddEditProductScreen extends StatefulWidget {
-  const AddEditProductScreen({super.key});
+  // 1. NOVO PARÂMETRO: O PRODUTO A SER EDITADO
+  final ProductModel? product;
+
+  const AddEditProductScreen({super.key, this.product});
+
   @override
   State<AddEditProductScreen> createState() => _AddEditProductScreenState();
 }
@@ -20,72 +25,86 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
   String? _selectedSupplier;
   bool _isSearching = false;
 
+  // 2. NOVO: Variável para saber se estamos em modo de edição
+  bool get _isEditing => widget.product != null;
+
+  @override
+  void initState() {
+    super.initState();
+    // 3. PRÉ-PREENCHIMENTO DOS CAMPOS!
+    if (_isEditing) {
+      _controller.nameController.text = widget.product!.name;
+      _controller.priceController.text = widget.product!.price.toString();
+      _controller.quantityController.text = widget.product!.quantity.toString();
+      _controller.minQuantityController.text = widget.product!.minimumQuantity.toString();
+      
+      _selectedCategory = widget.product!.category;
+      _controller.categoryController.text = widget.product!.category;
+      _selectedSupplier = widget.product!.supplier;
+      _controller.supplierController.text = widget.product!.supplier;
+    }
+  }
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Adicionar Produto')),
+      appBar: AppBar(
+        // 4. TÍTULO DINÂMICO
+        title: Text(_isEditing ? 'Editar Produto' : 'Adicionar Produto'),
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _controller.barcodeController,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
-                      labelText: 'Código de Barras (EAN)',
-                      prefixIcon: Icon(Icons.qr_code),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+            // Ocultamos a busca por código de barras no modo de edição
+            if (!_isEditing)
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _controller.barcodeController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Código de Barras (EAN)',
+                        prefixIcon: Icon(Icons.qr_code),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12))),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.deepPurple.shade50,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.all(16),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.deepPurple.shade50,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.all(16),
+                    ),
+                    icon: _isSearching 
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.search, color: Colors.deepPurple),
+                    onPressed: () async {
+                      setState(() => _isSearching = true);
+                      try {
+                        final productName = await _controller.searchByBarcode();
+                        _controller.nameController.text = productName;
+                        setState(() => _isSearching = false);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto encontrado!'), backgroundColor: Colors.green));
+                      } catch (e) {
+                        setState(() => _isSearching = false);
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
+                      }
+                    },
                   ),
-                  icon: _isSearching 
-                    ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.search, color: Colors.deepPurple),
-                  
-                  // A LÓGICA FINAL E CORRETA
-                  onPressed: () async {
-                    setState(() => _isSearching = true); // 1. Começa o loading
-                    
-                    try {
-                      // 2. Tenta buscar o nome do produto
-                      final productName = await _controller.searchByBarcode();
-
-                      // 3. ATUALIZA O CONTROLLER PRIMEIRO!
-                      _controller.nameController.text = productName;
-                      
-                      // 4. SÓ DEPOIS, ATUALIZA A TELA (para o spinner)
-                      setState(() => _isSearching = false); 
-
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto encontrado!'), backgroundColor: Colors.green));
-
-                    } catch (e) {
-                      // 5. ERRO!
-                      setState(() => _isSearching = false); // Para o loading
-                      
-                      if (!context.mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                ],
+              ),
+            if (!_isEditing) const SizedBox(height: 24),
             
             TextFormField(
-              controller: _controller.nameController, // O TextFormFiedl está ouvindo aqui
+              controller: _controller.nameController,
               textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Nome do Produto',
@@ -110,20 +129,17 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             StreamBuilder<List<CategoryModel>>(
               stream: _categoryService.getCategoriesStream(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Text('Erro ao carregar categorias: ${snapshot.error}');
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Text('Nenhuma categoria cadastrada.');
-                }
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) return Text('Erro: ${snapshot.error}');
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text('Nenhuma categoria cadastrada.');
+                
                 final categories = snapshot.data!;
-                if (_selectedCategory == null || !categories.any((c) => c.name == _selectedCategory)) {
+                
+                if (_controller.categoryController.text.isEmpty) {
                   _selectedCategory = categories.first.name;
                   _controller.categoryController.text = _selectedCategory!;
                 }
+
                 return DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Categoria', prefixIcon: Icon(Icons.category_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                   value: _selectedCategory,
@@ -138,20 +154,17 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             StreamBuilder<List<SupplierModel>>(
               stream: _supplierService.getSuppliersStream(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Text('Erro ao carregar fornecedores: ${snapshot.error}');
-                }
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const Text('Nenhum fornecedor cadastrado.');
-                }
+                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) return Text('Erro: ${snapshot.error}');
+                if (!snapshot.hasData || snapshot.data!.isEmpty) return const Text('Nenhum fornecedor cadastrado.');
+
                 final suppliers = snapshot.data!;
-                if (_selectedSupplier == null || !suppliers.any((s) => s.name == _selectedSupplier)) {
+
+                if (_controller.supplierController.text.isEmpty) {
                   _selectedSupplier = suppliers.first.name;
                   _controller.supplierController.text = _selectedSupplier!;
                 }
+
                 return DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Fornecedor', prefixIcon: Icon(Icons.store_outlined), border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(12)))),
                   value: _selectedSupplier,
@@ -174,16 +187,26 @@ class _AddEditProductScreenState extends State<AddEditProductScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
               onPressed: () async {
-                final error = await _controller.saveProduct();
+                // 5. LÓGICA DO BOTÃO ATUALIZADA
+                final error = await _controller.saveProduct(widget.product);
+                
                 if (!context.mounted) return;
                 if (error != null) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: Colors.red));
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Produto salvo!'), backgroundColor: Colors.green));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_isEditing ? 'Produto atualizado!' : 'Produto salvo!'),
+                      backgroundColor: Colors.green
+                    )
+                  );
                   Navigator.of(context).pop();
                 }
               },
-              child: const Text('SALVAR PRODUTO', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              child: Text(
+                _isEditing ? 'ATUALIZAR PRODUTO' : 'SALVAR PRODUTO',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+              ),
             ),
           ],
         ),

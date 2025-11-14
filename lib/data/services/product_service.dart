@@ -43,13 +43,24 @@ class ProductService {
     }
   }
 
-  // UPDATE
+  // UPDATE (Quantidade)
   Future<void> updateQuantity(String productId, int newQuantity) async {
     if (newQuantity < 0) return Future.value();
     try {
       await _getProductsCollection().doc(productId).update({'quantity': newQuantity});
     } catch (e) {
       print("Erro ao atualizar quantidade do produto: $e");
+      rethrow;
+    }
+  }
+
+  // NOVO: UPDATE (Produto Inteiro) - RF004
+  Future<void> updateProduct(String productId, ProductModel product) async {
+    try {
+      // Pega o produto model, converte para Map e atualiza o documento
+      await _getProductsCollection().doc(productId).update(product.toMap());
+    } catch (e) {
+      print("Erro ao atualizar produto: $e");
       rethrow;
     }
   }
